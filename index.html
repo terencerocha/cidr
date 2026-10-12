@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Máscaras CIDR /24 a /32</title>
+<style>
+/* Layout: coluna única de leitura (aula) com um "laboratório" interativo de bits no topo, tabela-referência e exercícios no fim */
+:root{
+  --navy:#0F1B2D; --navy2:#16263E; --navy3:#1E3352; --line:#2A4266;
+  --teal:#2DD4BF; --orange:#FB7A45; --fg:#E6EEF7; --muted:#9FB2CC;
+  --ok:#34D399; --bad:#F87171;
+  --mono:ui-monospace,"JetBrains Mono","Cascadia Code",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--navy);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:28px 64px;display:flex;flex-direction:column;gap:36px}
+section{display:flex;flex-direction:column;gap:14px;min-width:0}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+h1{margin:0;font-size:clamp(28px,6vw,40px);line-height:1.1;text-wrap:balance}
+h1 span{color:var(--orange);font-family:var(--mono)}
+h2{margin:0;font-size:22px;text-wrap:balance;display:flex;gap:10px;align-items:baseline}
+h2 small{font-family:var(--mono);font-size:13px;color:var(--orange);font-weight:500}
+p{margin:0;max-width:68ch}
+.lead{color:var(--muted);font-size:17px}
+code,.m{font-family:var(--mono)}
+code{background:var(--navy3);padding:1px 6px;border-radius:5px;font-size:.92em}
+.panel{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0}
+
+/* Lab */
+.lab-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.prefix{font-family:var(--mono);font-size:44px;font-weight:700;color:var(--orange);line-height:1;min-width:3.2ch}
+input[type=range]{flex:1;min-width:180px;accent-color:var(--teal);height:28px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps button{font-family:var(--mono);background:var(--navy);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 9px;cursor:pointer;font-size:13px}
+.steps button[aria-pressed=true]{border-color:var(--orange);color:var(--orange)}
+.steps button:focus-visible,.btn:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.bits-scroll{overflow-x:auto}
+.bits{display:flex;gap:10px;font-family:var(--mono);min-width:max-content}
+.oct{display:flex;flex-direction:column;gap:4px;align-items:center}
+.oct .row{display:flex;gap:2px}
+.bit{width:20px;height:28px;display:grid;place-items:center;border-radius:4px;font-size:14px;background:var(--navy);color:var(--muted);border:1px solid var(--line)}
+.bit.on{background:var(--teal);color:var(--navy);border-color:var(--teal);font-weight:700}
+.bit.host{border-style:dashed}
+.oct .dec{font-size:13px;color:var(--fg)}
+.oct.focus .dec{color:var(--orange);font-weight:700}
+.weights{display:flex;gap:2px}
+.weights span{width:20px;text-align:center;font-size:9px;color:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.fact{background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.fact small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fact b{font-family:var(--mono);font-size:17px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fact.hl b{color:var(--orange)}
+.note{font-size:14px;color:var(--muted);border-left:3px solid var(--orange);padding-left:12px}
+
+/* Tabela */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;min-width:640px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--navy2);font-weight:600}
+td{font-family:var(--mono);font-size:14px}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--navy2)}
+tbody tr.sel td{background:var(--navy3)}
+td.p{color:var(--orange);font-weight:700}
+td .n{color:var(--teal)}
+td .z{color:var(--muted)}
+tbody tr:last-child td{border-bottom:0}
+
+/* Pesos */
+.wgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;font-family:var(--mono);text-align:center}
+.wgrid div{background:var(--navy);border:1px solid var(--line);border-radius:8px;padding:8px 2px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.wgrid small{font-size:10px;color:var(--muted)}
+.wgrid b{font-size:16px;color:var(--teal)}
+.wgrid i{font-style:normal;font-size:12px;color:var(--orange)}
+
+.trap{background:var(--navy2);border:1px solid var(--orange);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.trap b{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange)}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:68ch}
+
+/* Calculadora */
+.calc{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.calc input{font-family:var(--mono);font-size:16px;background:var(--navy);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:10px 12px;flex:1;min-width:0;max-width:260px}
+.err{color:var(--bad);font-size:14px}
+
+/* Exercícios */
+.ex{display:flex;flex-direction:column;gap:12px}
+.q{background:var(--navy2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.q p{font-weight:600}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+.opts button{font-family:var(--mono);background:var(--navy);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
+.opts button:hover:not(:disabled){border-color:var(--teal)}
+.opts button.ok{border-color:var(--ok);background:rgba(52,211,153,.12)}
+.opts button.no{border-color:var(--bad);background:rgba(248,113,113,.12)}
+.opts button:disabled{cursor:default}
+.fb{font-size:14px;color:var(--muted)}
+.score{font-family:var(--mono);color:var(--teal)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:520px){.bit{width:17px}.weights span{width:17px}.prefix{font-size:36px}.wgrid b{font-size:14px}}
+</style>
+</head>
+<body style="margin:0">
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <span class="eyebrow">Aula de redes · Sub-redes IPv4</span>
+    <h1>Máscaras CIDR <span>/24 → /32</span></h1>
+    <p class="lead">Tudo acontece no último octeto. Cada bit que você “acende” à direita do /24 divide a rede pela metade. Mexa no laboratório abaixo e veja os bits mudarem.</p>
+  </header>
+
+  <!-- LAB -->
+  <section aria-labelledby="lab-t">
+    <h2 id="lab-t">Laboratório de bits <small>interativo</small></h2>
+    <div class="panel">
+      <div class="lab-top">
+        <div class="prefix" id="pfx">/26</div>
+        <input type="range" id="slider" min="24" max="32" value="26" aria-label="Prefixo CIDR">
+      </div>
+      <div class="steps" id="steps"></div>
+      <div class="bits-scroll"><div class="bits" id="bits"></div></div>
+      <div class="facts">
+        <div class="fact hl"><small>Máscara decimal</small><b id="fMask"></b></div>
+        <div class="fact"><small>Último octeto (bin)</small><b id="fBin"></b></div>
+        <div class="fact"><small>Wildcard</small><b id="fWild"></b></div>
+        <div class="fact"><small>Bits de host</small><b id="fHb"></b></div>
+        <div class="fact"><small>Tamanho do bloco</small><b id="fBlock"></b></div>
+        <div class="fact hl"><small>Hosts utilizáveis</small><b id="fHosts"></b></div>
+        <div class="fact"><small>Sub-redes em um /24</small><b id="fSubs"></b></div>
+      </div>
+      <p class="note" id="fNote"></p>
+    </div>
+  </section>
+
+  <!-- CONCEITO -->
+  <section aria-labelledby="c-t">
+    <h2 id="c-t">O que é a máscara</h2>
+    <p>Um endereço IPv4 tem 32 bits, divididos em 4 octetos de 8 bits. A máscara diz quais bits são <b style="color:var(--teal)">rede</b> (1) e quais são <b>host</b> (0). Os 1s ficam sempre juntos à esquerda, então basta contar quantos são: esse número é o prefixo CIDR.</p>
+    <p><code>/26</code> = 26 bits em 1 = <code>11111111.11111111.11111111.11000000</code> = <code>255.255.255.192</code></p>
+    <p>Do /24 ao /32 os três primeiros octetos são sempre <code>255.255.255</code>. Só o último muda, e ele é a soma dos pesos dos bits acesos:</p>
+    <div class="wgrid" aria-label="Pesos dos bits do octeto">
+      <div><small>bit 1</small><b>128</b><i>/25 → 128</i></div>
+      <div><small>bit 2</small><b>64</b><i>/26 → 192</i></div>
+      <div><small>bit 3</small><b>32</b><i>/27 → 224</i></div>
+      <div><small>bit 4</small><b>16</b><i>/28 → 240</i></div>
+      <div><small>bit 5</small><b>8</b><i>/29 → 248</i></div>
+      <div><small>bit 6</small><b>4</b><i>/30 → 252</i></div>
+      <div><small>bit 7</small><b>2</b><i>/31 → 254</i></div>
+      <div><small>bit 8</small><b>1</b><i>/32 → 255</i></div>
+    </div>
+    <p>A linha laranja é a <b>soma acumulada</b>: 128, 128+64=192, 192+32=224 e assim por diante. Decore essa sequência e você tem todas as máscaras.</p>
+  </section>
+
+  <!-- TABELA -->
+  <section aria-labelledby="t-t">
+    <h2 id="t-t">Tabela de referência</h2>
+    <p class="lead" style="font-size:15px">Clique numa linha para carregá-la no laboratório.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>CIDR</th><th>Máscara decimal</th><th>Bitmask (4º octeto)</th><th>Wildcard</th><th>Bloco</th><th>Endereços</th><th>Hosts úteis</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FÓRMULAS -->
+  <section aria-labelledby="f-t">
+    <h2 id="f-t">As três contas que resolvem tudo</h2>
+    <ul>
+      <li><b>Bits de host</b> = 32 − prefixo. Ex.: /27 → 5 bits.</li>
+      <li><b>Endereços no bloco</b> = 2<sup>bits de host</sup>. Ex.: 2⁵ = 32. Também é 256 − último octeto da máscara (256 − 224 = 32).</li>
+      <li><b>Hosts utilizáveis</b> = bloco − 2 (tira o endereço de rede e o de broadcast). Ex.: 32 − 2 = 30.</li>
+    </ul>
+    <p>As sub-redes começam em múltiplos do bloco. Num /27 (bloco 32): .0, .32, .64, .96, .128, .160, .192, .224.</p>
+    <div class="trap">
+      <b>⚠ Pegadinha de prova</b>
+      <p><code>/31</code> e <code>/32</code> fogem da regra “bloco − 2”. O /31 (RFC 3021) usa os 2 endereços em links ponto a ponto, sem rede nem broadcast. O /32 identifica um único host: loopback de roteador, rota de host, regra de firewall para um IP só.</p>
+    </div>
+    <div class="trap">
+      <b>⚠ Não confunda</b>
+      <p>Wildcard é a máscara invertida (255 − cada octeto). Aparece em ACL Cisco e no <code>network</code> do OSPF: /26 vira <code>0.0.0.63</code>. A máscara diz o que é rede; a wildcard diz quais bits podem variar.</p>
+    </div>
+  </section>
+
+  <!-- CALCULADORA -->
+  <section aria-labelledby="k-t">
+    <h2 id="k-t">Exemplo resolvido</h2>
+    <p>Digite um IP com prefixo entre /24 e /32 e veja a rede, o broadcast e a faixa de hosts.</p>
+    <div class="panel">
+      <div class="calc">
+        <input id="ipIn" value="192.168.10.77/27" aria-label="IP com prefixo" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="err" id="ipErr" hidden></div>
+      <div class="facts" id="ipOut"></div>
+      <p class="note" id="ipWhy"></p>
+    </div>
+  </section>
+
+  <!-- EXERCÍCIOS -->
+  <section aria-labelledby="e-t">
+    <h2 id="e-t">Fixação rápida <small class="score" id="score"></small></h2>
+    <div class="ex" id="ex"></div>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function info(p){
+  const hb=32-p, block=2**hb, last=256-block===256?0:256-block;
+  const lastOct = p===24?0:256-block;
+  const usable = p===32?1:p===31?2:block-2;
+  return {p,hb,block,last:lastOct,usable,
+    mask:`255.255.255.${lastOct}`, wild:`0.0.0.${255-lastOct}`,
+    bin:lastOct.toString(2).padStart(8,"0"), subs:256/block};
+}
+const notes={
+  24:"Rede classe C “cheia”: o último octeto inteiro é host. 254 hosts úteis, muito comum em LANs.",
+  25:"Divide o /24 ao meio: .0–.127 e .128–.255.",
+  26:"Quatro sub-redes de 64: .0, .64, .128, .192.",
+  27:"Oito sub-redes de 32. Bom tamanho para VLANs pequenas.",
+  28:"Dezesseis sub-redes de 16. Comum em DMZs e blocos públicos pequenos.",
+  29:"Bloco de 8, 6 hosts úteis. Muito usado por provedores ao entregar IPs fixos.",
+  30:"Clássico de link ponto a ponto: 2 hosts úteis, um em cada ponta.",
+  31:"RFC 3021: link ponto a ponto sem desperdício. Os 2 endereços são usados; não há rede nem broadcast.",
+  32:"Um único endereço. Loopbacks, rotas de host e objetos de firewall de um IP só."
+};
+
+// Steps
+const steps=$('steps');
+for(let p=24;p<=32;p++){const b=document.createElement('button');b.textContent='/'+p;b.onclick=()=>setP(p);steps.appendChild(b);}
+
+function setP(p){
+  $('slider').value=p; const I=info(p);
+  $('pfx').textContent='/'+p;
+  [...steps.children].forEach((b,k)=>b.setAttribute('aria-pressed',k+24===p));
+  // bits
+  const W=[128,64,32,16,8,4,2,1]; let html='';
+  for(let o=0;o<4;o++){
+    let row=''; let dec=0;
+    for(let b=0;b<8;b++){const idx=o*8+b, on=idx<p; if(on)dec+=W[b];
+      row+=`<span class="bit ${on?'on':'host'}">${on?1:0}</span>`;}
+    html+=`<div class="oct ${o===3?'focus':''}"><div class="row">${row}</div>${o===3?`<div class="weights">${W.map(w=>`<span>${w}</span>`).join('')}</div>`:''}<span class="dec">${dec}</span></div>`;
+  }
+  $('bits').innerHTML=html;
+  $('fMask').textContent=I.mask; $('fBin').textContent=I.bin; $('fWild').textContent=I.wild;
+  $('fHb').textContent=I.hb; $('fBlock').textContent=I.block;
+  $('fHosts').textContent=I.usable+(p>=31?' *':'');
+  $('fSubs').textContent=I.subs;
+  $('fNote').textContent=notes[p];
+  document.querySelectorAll('#tbody tr').forEach(tr=>tr.classList.toggle('sel',+tr.dataset.p===p));
+}
+$('slider').oninput=e=>setP(+e.target.value);
+
+// Tabela
+const tb=$('tbody');
+for(let p=24;p<=32;p++){
+  const I=info(p);
+  const binHtml=[...I.bin].map(c=>`<span class="${c==='1'?'n':'z'}">${c}</span>`).join('');
+  const tr=document.createElement('tr'); tr.dataset.p=p; tr.tabIndex=0;
+  tr.innerHTML=`<td class="p">/${p}</td><td>${I.mask}</td><td>${binHtml}</td><td>${I.wild}</td><td>${I.block}</td><td>${I.block}</td><td>${I.usable}${p===31?' (RFC 3021)':p===32?' (host)':''}</td>`;
+  tr.onclick=()=>{setP(p);$('lab-t').scrollIntoView({behavior:'smooth'});};
+  tr.onkeydown=e=>{if(e.key==='Enter')tr.onclick();};
+  tb.appendChild(tr);
+}
+
+// Calculadora
+function calc(){
+  const v=$('ipIn').value.trim(), m=v.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/);
+  const err=$('ipErr'), out=$('ipOut'), why=$('ipWhy');
+  if(!m){err.textContent='Use o formato 192.168.10.77/27.';err.hidden=false;out.innerHTML='';why.textContent='';return;}
+  const o=m.slice(1,5).map(Number), p=+m[5];
+  if(o.some(x=>x>255)){err.textContent='Cada octeto vai de 0 a 255.';err.hidden=false;out.innerHTML='';why.textContent='';return;}
+  if(p<24||p>32){err.textContent='Esta aula cobre de /24 a /32. Escolha um prefixo nessa faixa.';err.hidden=false;out.innerHTML='';why.textContent='';return;}
+  err.hidden=true;
+  const I=info(p), base=o.slice(0,3).join('.'), net=Math.floor(o[3]/I.block)*I.block, bc=net+I.block-1;
+  let first,lastH;
+  if(p===32){first=lastH=net;} else if(p===31){first=net;lastH=bc;} else {first=net+1;lastH=bc-1;}
+  const f=(l,v,h)=>`<div class="fact ${h?'hl':''}"><small>${l}</small><b>${v}</b></div>`;
+  out.innerHTML=f('Máscara',I.mask)+f('Rede',`${base}.${net}`,1)+
+    (p<31?f('Broadcast',`${base}.${bc}`,1):f('Broadcast','não se aplica'))+
+    f('Primeiro host',`${base}.${first}`)+f('Último host',`${base}.${lastH}`)+f('Hosts úteis',I.usable);
+  why.textContent = p===32 ? 'Um /32 é só o próprio endereço.' :
+    `Bloco de ${I.block}. ${o[3]} ÷ ${I.block} = ${Math.floor(o[3]/I.block)} (despreza o resto) × ${I.block} = ${net}. Rede em .${net}, próximo bloco em .${net+I.block}, então o fim é .${bc}.`;
+}
+$('ipIn').oninput=calc;
+
+// Exercícios
+const EX=[
+ {q:'Qual a máscara decimal do /28?',o:['255.255.255.224','255.255.255.240','255.255.255.248'],c:1,e:'128+64+32+16 = 240.'},
+ {q:'Quantos hosts úteis tem um /29?',o:['8','6','4'],c:1,e:'2³ = 8 endereços − rede − broadcast = 6.'},
+ {q:'255.255.255.252 corresponde a qual prefixo?',o:['/29','/30','/31'],c:1,e:'252 = 11111100: seis bits acesos no último octeto. 24 + 6 = /30.'},
+ {q:'Qual a wildcard do /27?',o:['0.0.0.31','0.0.0.32','0.0.0.224'],c:0,e:'255 − 224 = 31.'},
+ {q:'Em 10.0.0.130/26, qual é o endereço de rede?',o:['10.0.0.64','10.0.0.128','10.0.0.130'],c:1,e:'Bloco de 64: .0, .64, .128, .192. O 130 cai no bloco .128.'},
+ {q:'Em 172.16.5.45/29, qual é o broadcast?',o:['172.16.5.47','172.16.5.48','172.16.5.55'],c:0,e:'Bloco de 8: 45 está em .40–.47. Broadcast = .47.'},
+ {q:'Quantas sub-redes /27 cabem num /24?',o:['4','8','16'],c:1,e:'256 ÷ 32 = 8. Ou 2^(27−24) = 2³ = 8.'},
+ {q:'Para um link ponto a ponto sem desperdiçar nenhum endereço, qual prefixo?',o:['/30','/31','/32'],c:1,e:'O /31 (RFC 3021) usa os dois endereços. O /30 desperdiça rede e broadcast.'}
+];
+let right=0, done=0;
+const ex=$('ex');
+EX.forEach((x,k)=>{
+  const d=document.createElement('div'); d.className='q';
+  d.innerHTML=`<p>${k+1}. ${x.q}</p><div class="opts">${x.o.map((o,j)=>`<button id="ex${k}o${j}">${o}</button>`).join('')}</div><div class="fb" hidden></div>`;
+  d.querySelectorAll('button').forEach((b,j)=>b.onclick=()=>{
+    d.querySelectorAll('button').forEach(z=>z.disabled=true);
+    d.querySelectorAll('button')[x.c].classList.add('ok');
+    if(j!==x.c)b.classList.add('no'); else right++;
+    done++; const fb=d.querySelector('.fb'); fb.hidden=false;
+    fb.textContent=(j===x.c?'Correto. ':'Resposta: '+x.o[x.c]+'. ')+x.e;
+    $('score').textContent=`${right}/${done} acertos`;
+  });
+  ex.appendChild(d);
+});
+
+setP(26); calc();
+</script>
+</body>
+</html>
